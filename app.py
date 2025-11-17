@@ -38,10 +38,30 @@ st.title("🚗 **Dashboard Analítico – Toyota Colombia**")
 st.write("Exploración interactiva y profesional del dataset `toyota.csv`")
 
 # ============================================
-# CARGA DEL DATASET
+# CARGA Y LIMPIEZA DEL DATASET
 # ============================================
 df = pd.read_csv("toyota.csv")
 
+# Renombrar columnas a estándar español si existen
+df = df.rename(columns={
+    "model": "modelo",
+    "year": "año",
+    "price": "valor",
+    "transmission": "transmisión",
+    "mileage": "kilometraje",
+    "fuelType": "combustible",
+    "engineSize": "motor"
+})
+
+# --- LIMPIEZA DEL PRECIO ---
+df["valor"] = (
+    df["valor"]
+    .astype(str)
+    .str.replace(".", "", regex=False)
+)
+df["valor"] = pd.to_numeric(df["valor"], errors="coerce")
+
+# Detectar tipos de columnas
 num_cols = df.select_dtypes(include=["number"]).columns.tolist()
 cat_cols = df.select_dtypes(exclude=["number"]).columns.tolist()
 
@@ -60,24 +80,19 @@ if "modelo" in df.columns:
     df = df[df["modelo"].isin(modelo_sel)]
 
 # Filtro por combustible
-fuel_col = None
-for col in cat_cols:
-    if any(x in col.lower() for x in ["combustible", "fuel", "tipo"]):
-        fuel_col = col
-
-if fuel_col:
+if "combustible" in df.columns:
     fuel_sel = st.sidebar.multiselect(
         "Tipo de Combustible",
-        df[fuel_col].unique(),
-        default=df[fuel_col].unique()
+        df["combustible"].unique(),
+        default=df["combustible"].unique()
     )
-    df = df[df[fuel_col].isin(fuel_sel)]
+    df = df[df["combustible"].isin(fuel_sel)]
 
-# Filtro por rango de precio
+# Filtro por rango de precios
 if "valor" in df.columns:
     min_v, max_v = int(df["valor"].min()), int(df["valor"].max())
     val_range = st.sidebar.slider(
-        "Precio (Valor)",
+        "Rango de Precios",
         min_v, max_v,
         (min_v, max_v)
     )
@@ -88,29 +103,42 @@ if "valor" in df.columns:
 # ============================================
 st.markdown("<div class='section-title'>📌 Indicadores Generales</div>", unsafe_allow_html=True)
 
-col1, col2, col3, col4 = st.columns(4)
+c1, c2, c3, c4 = st.columns(4)
 
-with col1:
-    st.markdown("<div class='kpi-card'><h4>Total de Vehículos</h4>"
-                f"<div class='kpi-number'>{df.shape[0]}</div></div>", unsafe_allow_html=True)
+with c1:
+    st.markdown(f"""
+        <div class='kpi-card'>
+            <h4>Total de Vehículos</h4>
+            <div class='kpi-number'>{df.shape[0]}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-with col2:
-    if "valor" in df.columns:
-        st.markdown("<div class='kpi-card'><h4>Precio Promedio</h4>"
-                    f"<div class='kpi-number'>${int(df['valor'].mean()):,}</div></div>", unsafe_allow_html=True)
+with c2:
+    st.markdown(f"""
+        <div class='kpi-card'>
+            <h4>Precio Promedio</h4>
+            <div class='kpi-number'>${int(df['valor'].mean()):,}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-with col3:
-    if "valor" in df.columns:
-        st.markdown("<div class='kpi-card'><h4>Precio Mínimo</h4>"
-                    f"<div class='kpi-number'>${int(df['valor'].min()):,}</div></div>", unsafe_allow_html=True)
+with c3:
+    st.markdown(f"""
+        <div class='kpi-card'>
+            <h4>Precio Mínimo</h4>
+            <div class='kpi-number'>${int(df['valor'].min()):,}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
-with col4:
-    if "valor" in df.columns:
-        st.markdown("<div class='kpi-card'><h4>Precio Máximo</h4>"
-                    f"<div class='kpi-number'>${int(df['valor'].max()):,}</div></div>", unsafe_allow_html=True)
+with c4:
+    st.markdown(f"""
+        <div class='kpi-card'>
+            <h4>Precio Máximo</h4>
+            <div class='kpi-number'>${int(df['valor'].max()):,}</div>
+        </div>
+    """, unsafe_allow_html=True)
 
 # ============================================
-# ANÁLISIS TIPO AFICHE
+# ANÁLISIS GENERAL
 # ============================================
 st.markdown("<div class='section-title'>📝 Análisis General del Mercado Toyota</div>", unsafe_allow_html=True)
 
@@ -130,10 +158,10 @@ g1, g2 = st.columns(2)
 
 # Pie chart por combustible
 with g1:
-    if fuel_col:
+    if "combustible" in df.columns:
         pie = px.pie(
             df,
-            names=fuel_col,
+            names="combustible",
             title="Distribución por Combustible",
             hole=0.4
         )
@@ -141,7 +169,7 @@ with g1:
 
 # Bar chart precio promedio por modelo
 with g2:
-    if "modelo" in df.columns and "valor" in df.columns:
+    if "modelo" in df.columns:
         bar = px.bar(
             df.groupby("modelo")["valor"].mean().reset_index(),
             x="modelo",
@@ -152,7 +180,7 @@ with g2:
         st.plotly_chart(bar, use_container_width=True)
 
 # ============================================
-# Distribución de precios
+# HISTOGRAMA DE PRECIOS
 # ============================================
 st.markdown("<div class='section-title'>💰 Distribución de Precios</div>", unsafe_allow_html=True)
 
