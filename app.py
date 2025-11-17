@@ -22,9 +22,14 @@ st.markdown("""
             border: 1px solid #e0e0e0;
         }
         .kpi-number {
-            font-size: 40px;
+            font-size: 38px;
             font-weight: 700;
             color: #1f77b4;
+        }
+        .kpi-text {
+            font-size: 14px;
+            font-weight: 500;
+            color: #333;
         }
         .section-title {
             font-size: 28px !important;
@@ -42,7 +47,7 @@ st.write("Exploración interactiva y profesional del dataset `toyota.csv`")
 # ============================================
 df = pd.read_csv("toyota.csv")
 
-# Renombrar columnas a estándar español si existen
+# Renombrar columnas a español
 df = df.rename(columns={
     "model": "modelo",
     "year": "año",
@@ -53,15 +58,13 @@ df = df.rename(columns={
     "engineSize": "motor"
 })
 
-# --- LIMPIEZA DEL PRECIO ---
+# Limpieza del precio
 df["valor"] = (
-    df["valor"]
-    .astype(str)
-    .str.replace(".", "", regex=False)
+    df["valor"].astype(str).str.replace(".", "", regex=False)
 )
 df["valor"] = pd.to_numeric(df["valor"], errors="coerce")
 
-# Detectar tipos de columnas
+# Detectar columnas numéricas/categóricas
 num_cols = df.select_dtypes(include=["number"]).columns.tolist()
 cat_cols = df.select_dtypes(exclude=["number"]).columns.tolist()
 
@@ -70,7 +73,6 @@ cat_cols = df.select_dtypes(exclude=["number"]).columns.tolist()
 # ============================================
 st.sidebar.title("🔍 Filtros")
 
-# Filtro por modelo
 if "modelo" in df.columns:
     modelo_sel = st.sidebar.multiselect(
         "Modelo",
@@ -79,7 +81,6 @@ if "modelo" in df.columns:
     )
     df = df[df["modelo"].isin(modelo_sel)]
 
-# Filtro por combustible
 if "combustible" in df.columns:
     fuel_sel = st.sidebar.multiselect(
         "Tipo de Combustible",
@@ -88,18 +89,15 @@ if "combustible" in df.columns:
     )
     df = df[df["combustible"].isin(fuel_sel)]
 
-# Filtro por rango de precios
 if "valor" in df.columns:
     min_v, max_v = int(df["valor"].min()), int(df["valor"].max())
     val_range = st.sidebar.slider(
-        "Rango de Precios",
-        min_v, max_v,
-        (min_v, max_v)
+        "Rango de Precios", min_v, max_v, (min_v, max_v)
     )
     df = df[df["valor"].between(val_range[0], val_range[1])]
 
 # ============================================
-# KPI – MÉTRICAS CLAVE
+# KPI – INDICADORES GENERALES EXPLICADOS
 # ============================================
 st.markdown("<div class='section-title'>📌 Indicadores Generales</div>", unsafe_allow_html=True)
 
@@ -108,8 +106,9 @@ c1, c2, c3, c4 = st.columns(4)
 with c1:
     st.markdown(f"""
         <div class='kpi-card'>
-            <h4>Total de Vehículos</h4>
+            <h4>Total de Vehículos Analizados</h4>
             <div class='kpi-number'>{df.shape[0]}</div>
+            <div class='kpi-text'>Cantidad de registros después de los filtros aplicados</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -118,22 +117,25 @@ with c2:
         <div class='kpi-card'>
             <h4>Precio Promedio</h4>
             <div class='kpi-number'>${int(df['valor'].mean()):,}</div>
+            <div class='kpi-text'>Valor promedio de los vehículos seleccionados</div>
         </div>
     """, unsafe_allow_html=True)
 
 with c3:
     st.markdown(f"""
         <div class='kpi-card'>
-            <h4>Precio Mínimo</h4>
+            <h4>Precio Mínimo Encontrado</h4>
             <div class='kpi-number'>${int(df['valor'].min()):,}</div>
+            <div class='kpi-text'>El vehículo más económico disponible</div>
         </div>
     """, unsafe_allow_html=True)
 
 with c4:
     st.markdown(f"""
         <div class='kpi-card'>
-            <h4>Precio Máximo</h4>
+            <h4>Precio Máximo Registrado</h4>
             <div class='kpi-number'>${int(df['valor'].max()):,}</div>
+            <div class='kpi-text'>El vehículo de mayor valor en el dataset</div>
         </div>
     """, unsafe_allow_html=True)
 
@@ -143,10 +145,10 @@ with c4:
 st.markdown("<div class='section-title'>📝 Análisis General del Mercado Toyota</div>", unsafe_allow_html=True)
 
 st.info("""
-El mercado de vehículos Toyota presenta variaciones importantes según el modelo, 
-el tipo de combustible y el rango de precios. Este dashboard permite identificar 
-cómo se distribuyen los precios, cuáles son los modelos más comunes y qué tipo 
-de combustible predomina en la oferta disponible.
+Este dashboard permite analizar la oferta actual de vehículos Toyota según modelo, 
+tipo de combustible, precios y características técnicas.  
+Los indicadores generales muestran cómo varía el mercado dependiendo 
+de los filtros aplicados.
 """)
 
 # ============================================
@@ -156,18 +158,16 @@ st.markdown("<div class='section-title'>📊 Visualizaciones</div>", unsafe_allo
 
 g1, g2 = st.columns(2)
 
-# Pie chart por combustible
 with g1:
     if "combustible" in df.columns:
         pie = px.pie(
             df,
             names="combustible",
-            title="Distribución por Combustible",
+            title="Distribución por Tipo de Combustible",
             hole=0.4
         )
         st.plotly_chart(pie, use_container_width=True)
 
-# Bar chart precio promedio por modelo
 with g2:
     if "modelo" in df.columns:
         bar = px.bar(
@@ -194,14 +194,14 @@ hist = px.histogram(
 st.plotly_chart(hist, use_container_width=True)
 
 # ============================================
-# LINE CHART – Variables numéricas
+# LINE CHART – Tendencias
 # ============================================
 if len(num_cols) >= 2:
     st.markdown("<div class='section-title'>📈 Tendencias Numéricas</div>", unsafe_allow_html=True)
     st.line_chart(df[num_cols])
 
 # ============================================
-# TABLA DE DATOS
+# TABLA FINAL
 # ============================================
 st.markdown("<div class='section-title'>📄 Datos Filtrados</div>", unsafe_allow_html=True)
 st.dataframe(df, use_container_width=True)
